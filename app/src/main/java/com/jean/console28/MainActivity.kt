@@ -53,12 +53,41 @@ class MainActivity : ComponentActivity() {
     private var recordings by mutableStateOf<List<RecordingInfo>>(emptyList())
     private var currentRecording by mutableStateOf<RecordingInfo?>(null)
     private var tracks by mutableStateOf<List<MusicTrack>>(emptyList())
+    private var libraryDiagnostics by mutableStateOf("Nenhuma leitura executada")
+    private var authorizedFolders by mutableStateOf(0)
     private var favorites by mutableStateOf<Set<Long>>(emptySet())
     private var playlists by mutableStateOf<Map<String, List<Long>>>(emptyMap())
     private var hasMusicPermission by mutableStateOf(false)
     private var libraryLoading by mutableStateOf(false)
     private var libraryError by mutableStateOf<String?>(null)
     private var exportFile: File? = null
+
+    private val folderPrefs by lazy {
+        getSharedPreferences("console28_music_folders", MODE_PRIVATE)
+    }
+    private fun musicFolders(): List<Uri> =
+        folderPrefs.getStringSet("roots", emptySet()).orEmpty().map(Uri::parse)
+
+    private val chooseFolder = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { tree ->
+        if (tree != null) {
+            try {
+                contentResolver.takePersistableUriPermission(
+                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                val updated = musicFolders().map(Uri::toString).toMutableSet()
+                updated.add(tree.toString())
+                folderPrefs.edit().putStringSet("roots", updated).apply()
+                authorizedFolders = updated.size
+                message = "Pasta autorizada. Procurando músicas e subpastas..."
+                refreshMusic()
+            } catch (e: SecurityException) {
+                libraryError = "Não foi possível acessar a pasta autorizada."
+            }
+        }
+    }
+
     private val mediaHandler = Handler(Looper.getMainLooper())
     private var pendingRefresh = false
     private var observingAudio = false
@@ -124,6 +153,7 @@ class MainActivity : ComponentActivity() {
         favorites = playlistStore.favorites()
         playlists = playlistStore.playlists()
         recordings = recorder.recordings()
+        authorizedFolders = musicFolders().size
         audio.player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
@@ -149,6 +179,9 @@ class MainActivity : ComponentActivity() {
                 onSettings = { s -> settings = s; updateDsp() },
                 spectrum = { audio.spectrum.snapshot() },
                 tracks = tracks,
+                libraryDiagnostics = libraryDiagnostics,
+                authorizedFolders = authorizedFolders,
+                onAuthorizeFolder = { chooseFolder.launch(null) },
                 favorites = favorites,
                 playlists = playlists,
                 hasMusicPermission = hasMusicPermission,
@@ -255,8 +288,13 @@ class MainActivity : ComponentActivity() {
         libraryError = null
         lifecycleScope.launch {
             try {
-                tracks = withContext(Dispatchers.IO) { DeviceMusicLibrary(applicationContext).scan() }
-                message = "${tracks.size} arquivos de áudio encontrados automaticamente."
+                val found = withContext(Dispatchers.IO) {
+                    DeviceMusicLibrary(applicationContext).scanDetailed(musicFolders())
+                }
+                tracks = found.tracks
+                libraryDiagnostics = found.diagnostics
+                authorizedFolders = musicFolders().size
+                message = tracks.size.toString() + " arquivos encontrados no dispositivo."
             } catch (e: Exception) {
                 libraryError = "Não foi possível ler a biblioteca: ${e.message ?: "erro desconhecido"}"
             } finally {
