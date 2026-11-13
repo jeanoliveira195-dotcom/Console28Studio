@@ -9,7 +9,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 /** Adaptador PCM para o fluxo do Media3. */
 class ConsoleAudioProcessor(
-    private val parameters: AtomicReference<ConsoleSettings>
+    private val parameters: AtomicReference<ConsoleSettings>,
+    private val meter: AudioSpectrumMonitor
 ) : BaseAudioProcessor() {
     private var dsp: ConsoleDsp? = null
     private var channels = 2
@@ -20,6 +21,7 @@ class ConsoleAudioProcessor(
             throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
         }
         channels = inputAudioFormat.channelCount
+        meter.configure(inputAudioFormat.sampleRate, channels)
         dsp?.close()
         dsp = ConsoleDsp(inputAudioFormat.sampleRate, channels)
         return inputAudioFormat
@@ -27,12 +29,14 @@ class ConsoleAudioProcessor(
 
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
         dsp?.reset()
+        meter.reset()
         carry = ByteArray(0)
     }
 
     override fun onReset() {
         dsp?.close()
         dsp = null
+        meter.reset()
         carry = ByteArray(0)
     }
 
@@ -48,6 +52,7 @@ class ConsoleAudioProcessor(
         val pcm = ShortArray(processBytes / 2)
         ByteBuffer.wrap(newBytes, 0, processBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(pcm)
         dsp?.process(pcm, pcm.size, parameters.get())
+        meter.process(pcm, pcm.size) // Leitura visual pós-DSP, não altera o áudio.
         val output = replaceOutputBuffer(processBytes).order(ByteOrder.LITTLE_ENDIAN)
         output.asShortBuffer().put(pcm)
         output.position(processBytes)

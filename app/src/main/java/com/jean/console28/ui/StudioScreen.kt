@@ -32,6 +32,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jean.console28.audio.ConsoleSettings
+import com.jean.console28.audio.SpectrumFrame
 import com.jean.console28.audio.RecordingInfo
 import com.jean.console28.library.MusicTrack
 import kotlinx.coroutines.delay
@@ -39,16 +40,16 @@ import java.io.File
 import java.util.Locale
 import kotlin.math.max
 
-// Anodized charcoal, aged champagne brass and the amber LCD of late-70s/80s hi-fi.
-private val Ink = Color(0xFF121716)
-private val Panel = Color(0xFF202927)
-private val PanelDeep = Color(0xFF181F1E)
-private val Border = Color(0xFF3A4540)
-private val Brass = Color(0xFFD4B47B)
-private val Light = Color(0xFFF3EBDD)
-private val Soft = Color(0xFFAAB2A9)
-private val Accent = Color(0xFFE5C68D)
-private val Danger = Color(0xFFE48A7D)
+// Black velvet hi-fi shell with amber bevels and vintage red/green signal LEDs.
+private val Ink = Color(0xFF070A0B)
+private val Panel = Color(0xFF131718)
+private val PanelDeep = Color(0xFF0B1011)
+private val Border = Color(0xFF98732A)
+private val Brass = Color(0xFFF1C657)
+private val Light = Color(0xFFF6EDD8)
+private val Soft = Color(0xFFBBB5A4)
+private val Accent = Color(0xFFFFDB73)
+private val Danger = Color(0xFFFF5045)
 
 @Composable
 fun StudioScreen(
@@ -56,6 +57,7 @@ fun StudioScreen(
     onTab: (Int) -> Unit,
     settings: ConsoleSettings,
     onSettings: (ConsoleSettings) -> Unit,
+    spectrum: () -> SpectrumFrame,
     tracks: List<MusicTrack>,
     favorites: Set<Long>,
     playlists: Map<String, List<Long>>,
@@ -141,7 +143,7 @@ fun StudioScreen(
                                 label = { Text(label, fontSize = 11.sp) },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = Brass, selectedTextColor = Brass,
-                                    indicatorColor = Color(0xFF343E37),
+                                    indicatorColor = Color(0xFF38270D),
                                     unselectedIconColor = Soft, unselectedTextColor = Soft
                                 )
                             )
@@ -155,6 +157,8 @@ fun StudioScreen(
                     .padding(horizontal = 18.dp)
             ) {
                 Header()
+                RetroLedRail(isPlaying, spectrum)
+                Spacer(Modifier.height(12.dp))
                 when (tab) {
                     0 -> {
                         LazyColumn(
@@ -162,6 +166,9 @@ fun StudioScreen(
                             contentPadding = PaddingValues(bottom = 18.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
+                            item {
+                                AudioMonitorPanel(isPlaying, spectrum)
+                            }
                             item {
                                 NowPlaying(title, artist, isPlaying, isProcessedPreview,
                                     currentTrackId != null && currentTrackId in favorites,
@@ -285,6 +292,7 @@ fun StudioScreen(
                                 fontWeight = FontWeight.SemiBold)
                             Text("Seu som, sob controle. Ajustes aplicados ao player em tempo real e às novas gravações.",
                                 color = Soft, fontSize = 13.sp)
+                            AudioMonitorPanel(isPlaying, spectrum)
                             AnalogControls(settings, onSettings, !recording, expanded = true,
                                 onExpand = {}, alwaysOpen = true)
                             Text(if (recording) "Finalize a gravação para voltar a ajustar o efeito."
@@ -401,10 +409,10 @@ private fun Header() {
         verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
-                .background(Brush.linearGradient(listOf(Brass, Color(0xFF755E37)))),
+                .background(Brush.verticalGradient(listOf(Color(0xFF392710), Color(0xFF171D1D)))),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Rounded.GraphicEq, null, tint = Ink, modifier = Modifier.size(24.dp))
+            Icon(Icons.Rounded.GraphicEq, null, tint = Brass, modifier = Modifier.size(24.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column {
@@ -775,6 +783,9 @@ private fun AnalogControls(
             }
         }
         if (alwaysOpen || expanded) {
+            if (alwaysOpen) {
+                RetroKnobBoard(s, update, enabled)
+            } else {
             ControlSlider("Saturação", s.drive, enabled) { update(s.copy(drive = it)) }
             ControlSlider("Peso dos graves", s.warmth, enabled) { update(s.copy(warmth = it)) }
             ControlSlider("Compressão dos graves", s.bassCompression, enabled) {
@@ -787,6 +798,7 @@ private fun AnalogControls(
             Slider(value = s.outputDb.coerceIn(-18f, 6f),
                 onValueChange = { update(s.copy(outputDb = it)) },
                 valueRange = -18f..6f, enabled = enabled)
+            }
         }
         Text("EQ e compressão de graves com limitador de pico em Rust. Emulação inspirada em consoles históricos.",
             color = Soft, fontSize = 11.sp)

@@ -1,4 +1,15 @@
-# Console 28 Studio — v0.4.0 (Rust + Kotlin)
+# Console 28 Studio — v0.5.0
+
+## Interface hi-fi analógica, ícone e indicadores em tempo real
+
+- Visual inspirado na mesa de áudio aprovada: superfícies pretas foscas, contornos âmbar, indicadores verdes e vermelhos, pouco ruído visual em tela vertical.
+- Novo ícone adaptativo para o launcher do Android.
+- Espectro de 16 bandas e VU L/R derivados do áudio PCM realmente reproduzido pelo aplicativo, depois do DSP em Rust (estimativas estéticas, não medições certificadas).
+- Knobs manipuláveis por arraste vertical na aba Mixagem; sliders tradicionais preservados na aba Estúdio.
+- O filtro Rust, a compressão dos graves, as músicas locais, favoritos, playlists e a gravação WAV permanecem.
+- Testes locais e testes unitários Android do monitor; APK de desenvolvimento compilado no GitHub Actions.
+- Limitações: sem reprodução como serviço em segundo plano; o espectro cobre apenas o sinal PCM processado no app.
+
 
 ## Novidades v0.4 — graves com peso e compressão controlada
 

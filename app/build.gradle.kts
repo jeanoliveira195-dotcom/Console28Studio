@@ -13,8 +13,8 @@ android {
         applicationId = "com.jean.console28"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.4.0"
+        versionCode = 6
+        versionName = "0.5.0"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
     compileOptions {
@@ -44,6 +44,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.media3:media3-exoplayer:1.11.1")
+    testImplementation("junit:junit:4.13.2")
 }
 
 // Android Studio / Gradle primeiro compila as bibliotecas nativas e as empacota no APK.

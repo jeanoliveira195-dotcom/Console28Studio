@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
                 onTab = { if (!recording) tab = it },
                 settings = settings,
                 onSettings = { s -> settings = s; updateDsp() },
+                spectrum = { audio.spectrum.snapshot() },
                 tracks = tracks,
                 favorites = favorites,
                 playlists = playlists,

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Área segura do ícone adaptativo: barras LED, arco VU e assinatura 28. -->
+    <path android:fillColor="#101516" android:pathData="M24,17 Q17,17 17,24 L17,84 Q17,91 24,91 L84,91 Q91,91 91,84 L91,24 Q91,17 84,17 Z"/>
+    <path android:fillColor="#00000000" android:strokeColor="#E8BD59" android:strokeWidth="2.8"
+        android:strokeLineCap="round" android:pathData="M24,18.5 L84,18.5 Q89,18.5 89,24 L89,84 Q89,89 84,89 L24,89 Q19,89 19,84 L19,24 Q19,18.5 24,18.5 Z"/>
+    <path android:fillColor="#00000000" android:strokeColor="#9B7530" android:strokeWidth="1.4"
+        android:pathData="M25,60 Q54,12 83,60"/>
+    <path android:fillColor="#50E25E" android:pathData="M27,43 L33,43 L33,58 L27,58 Z"/>
+    <path android:fillColor="#69E750" android:pathData="M36,34 L42,34 L42,58 L36,58 Z"/>
+    <path android:fillColor="#F5CA4B" android:pathData="M45,27 L51,27 L51,58 L45,58 Z"/>
+    <path android:fillColor="#F4B63A" android:pathData="M54,38 L60,38 L60,58 L54,58 Z"/>
+    <path android:fillColor="#F77636" android:pathData="M63,31 L69,31 L69,58 L63,58 Z"/>
+    <path android:fillColor="#FF4439" android:pathData="M72,44 L78,44 L78,58 L72,58 Z"/>
+    <path android:fillColor="#EFC868" android:pathData="M27,65 L81,65 L81,67 L27,67 Z"/>
+    <!-- 28 em traço simples, adequado a ícones pequenos. -->
+    <path android:fillColor="#00000000" android:strokeColor="#F1CC70" android:strokeWidth="3.8"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M35,74 Q35,69 42,69 Q48,69 48,74 Q48,77 43,79 L35,84 L49,84"/>
+    <path android:fillColor="#00000000" android:strokeColor="#F1CC70" android:strokeWidth="3.8"
+        android:strokeLineCap="round"
+        android:pathData="M66,76 C74,70 69,68 63,68 C55,68 54,74 61,77 C50,81 55,86 63,86 C74,86 74,79 66,76 Z"/>
+</vector>

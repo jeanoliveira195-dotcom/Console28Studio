@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference
 @UnstableApi
 class StudioPlayer(context: Context, private val settings: AtomicReference<ConsoleSettings>) {
     val player: ExoPlayer
+    val spectrum = AudioSpectrumMonitor()
     private var previewProcessed = false
 
     init {
@@ -24,7 +25,7 @@ class StudioPlayer(context: Context, private val settings: AtomicReference<Conso
                 enableFloatOutput: Boolean,
                 enableAudioOutputPlaybackParams: Boolean
             ): AudioSink = DefaultAudioSink.Builder(context)
-                .setAudioProcessors(arrayOf(ConsoleAudioProcessor(settings)))
+                .setAudioProcessors(arrayOf(ConsoleAudioProcessor(settings, spectrum)))
                 .setEnableFloatOutput(false)
                 .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                 .build()
