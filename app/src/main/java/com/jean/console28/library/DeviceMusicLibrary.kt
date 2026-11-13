@@ -36,8 +36,8 @@ class DeviceMusicLibrary(private val context: Context) {
         } catch (_: UnsupportedOperationException) {
         }
         return items.values.sortedWith(
-            compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.artist }
+            compareBy<MusicTrack> { it.title.lowercase(java.util.Locale.ROOT) }
+                .thenBy { it.artist.lowercase(java.util.Locale.ROOT) }
         )
     }
 
