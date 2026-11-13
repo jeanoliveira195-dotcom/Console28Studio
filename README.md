@@ -1,4 +1,12 @@
-# Console 28 Studio — v0.5.0
+# Console 28 Studio v0.6.0 — Biblioteca automática ampliada
+
+- Lista todos os áudios indexados pelo Android, inclusive faixas curtas, arquivos sem metadados, músicas em pastas diferentes e itens não classificados como `IS_MUSIC`.
+- Busca complementar no índice MediaStore.Files, quando disponível, para recuperar arquivos de áudio reconhecidos por MIME ou extensão.
+- Recarrega a biblioteca automaticamente ao retornar ao aplicativo e quando o Android comunica alterações no catálogo.
+- Preserva os identificadores MediaStore das músicas existentes para manter favoritos e playlists.
+- Mantém DSP Rust, gravação WAV, equalização, visualizador de espectro e interface vintage.
+- **Limitação do Android:** não é possível acessar automaticamente músicas criptografadas/DRM, arquivos privados de outros aplicativos ou itens não indexados pelo sistema sem o usuário conceder acesso específico. Não solicita permissão de gerenciamento irrestrito de arquivos.
+
 
 ## Interface hi-fi analógica, ícone e indicadores em tempo real
 

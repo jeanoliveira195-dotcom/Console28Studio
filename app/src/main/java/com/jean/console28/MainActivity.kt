@@ -2,6 +2,10 @@ package com.jean.console28
 
 import android.Manifest
 import android.content.Intent
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -55,6 +59,18 @@ class MainActivity : ComponentActivity() {
     private var libraryLoading by mutableStateOf(false)
     private var libraryError by mutableStateOf<String?>(null)
     private var exportFile: File? = null
+    private val mediaHandler = Handler(Looper.getMainLooper())
+    private var pendingRefresh = false
+    private var observingAudio = false
+    private val delayedRefresh = Runnable { if (hasMusicPermission) refreshMusic() }
+    private val mediaObserver = object : ContentObserver(mediaHandler) {
+        override fun onChange(selfChange: Boolean) {
+            super.onChange(selfChange)
+            mediaHandler.removeCallbacks(delayedRefresh)
+            mediaHandler.postDelayed(delayedRefresh, 1500L)
+        }
+    }
+
 
     private val chooseAudio = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@registerForActivityResult
@@ -72,7 +88,7 @@ class MainActivity : ComponentActivity() {
 
     private val musicPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
         hasMusicPermission = allowed
-        if (allowed) refreshMusic() else {
+        if (allowed) { observeMusicChanges(); refreshMusic() } else {
             libraryError = "Permita acesso aos arquivos de áudio para mostrar as músicas do celular."
         }
     }
@@ -183,7 +199,8 @@ class MainActivity : ComponentActivity() {
                 onSeek = { ms -> audio.player.seekTo(ms) }
             )
         }
-        if (hasMusicPermission) refreshMusic() else requestMusicPermission()
+        if (hasMusicPermission) { observeMusicChanges(); refreshMusic() }
+        else requestMusicPermission()
     }
 
     private fun isMusicAllowed(): Boolean = ContextCompat.checkSelfPermission(
@@ -195,10 +212,35 @@ class MainActivity : ComponentActivity() {
     private fun requestMusicPermission() {
         if (isMusicAllowed()) {
             hasMusicPermission = true
+            observeMusicChanges()
             refreshMusic()
         } else {
             musicPermission.launch(if (Build.VERSION.SDK_INT >= 33)
                 Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+
+    private fun observeMusicChanges() {
+        if (observingAudio || !isMusicAllowed()) return
+        try {
+            contentResolver.registerContentObserver(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, true, mediaObserver
+            )
+            contentResolver.registerContentObserver(
+                MediaStore.Files.getContentUri("external"), true, mediaObserver
+            )
+            observingAudio = true
+        } catch (_: SecurityException) {
+            // Retomar o app também atualiza a lista, sem observador.
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        hasMusicPermission = isMusicAllowed()
+        if (hasMusicPermission && ::audio.isInitialized) {
+            observeMusicChanges()
+            refreshMusic()
         }
     }
 
@@ -208,16 +250,19 @@ class MainActivity : ComponentActivity() {
             libraryError = "Permissão de músicas necessária para indexar a biblioteca."
             return
         }
-        if (libraryLoading) return
+        if (libraryLoading) { pendingRefresh = true; return }
         libraryLoading = true
         libraryError = null
         lifecycleScope.launch {
             try {
                 tracks = withContext(Dispatchers.IO) { DeviceMusicLibrary(applicationContext).scan() }
-                message = "${tracks.size} músicas encontradas no dispositivo."
+                message = "${tracks.size} arquivos de áudio encontrados automaticamente."
             } catch (e: Exception) {
                 libraryError = "Não foi possível ler a biblioteca: ${e.message ?: "erro desconhecido"}"
-            } finally { libraryLoading = false }
+            } finally {
+                libraryLoading = false
+                if (pendingRefresh) { pendingRefresh = false; refreshMusic() }
+            }
         }
     }
 
@@ -283,6 +328,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        mediaHandler.removeCallbacks(delayedRefresh)
+        if (observingAudio) contentResolver.unregisterContentObserver(mediaObserver)
         recorder.stop()
         audio.release()
         super.onDestroy()

@@ -183,7 +183,7 @@ fun StudioScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Label("SUA COLEÇÃO")
-                                        Text("${tracks.size} faixas no dispositivo", color = Soft, fontSize = 12.sp)
+                                        Text("${tracks.size} arquivos de áudio localizados", color = Soft, fontSize = 12.sp)
                                     }
                                     IconButton(onClick = onRefreshMusic, enabled = !libraryLoading) {
                                         Icon(Icons.Rounded.Refresh, "Atualizar biblioteca", tint = Brass)
@@ -579,9 +579,10 @@ private fun LibraryPermission(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Rounded.Info, null, tint = Soft, modifier = Modifier.size(15.dp))
         Spacer(Modifier.width(6.dp))
-        Text("Não apareceu?", color = Soft, fontSize = 11.sp)
+        Text("Busca automática no armazenamento acessível do celular.",
+            color = Soft, fontSize = 11.sp, modifier = Modifier.weight(1f))
         TextButton(onClick = onPickMusic, contentPadding = PaddingValues(horizontal = 6.dp)) {
-            Text("Abrir arquivo manualmente", fontSize = 11.sp)
+            Text("Abrir outro", fontSize = 11.sp)
         }
     }
 }
