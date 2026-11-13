@@ -59,6 +59,9 @@ fun StudioScreen(
     onSettings: (ConsoleSettings) -> Unit,
     spectrum: () -> SpectrumFrame,
     tracks: List<MusicTrack>,
+    libraryDiagnostics: String,
+    authorizedFolders: Int,
+    onAuthorizeFolder: () -> Unit,
     favorites: Set<Long>,
     playlists: Map<String, List<Long>>,
     hasMusicPermission: Boolean,
@@ -183,7 +186,7 @@ fun StudioScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Label("SUA COLEÇÃO")
-                                        Text("${tracks.size} arquivos de áudio localizados", color = Soft, fontSize = 12.sp)
+                                        Text("${tracks.size} no catálogo · ${displayed.size} exibidas", color = Soft, fontSize = 12.sp)
                                     }
                                     IconButton(onClick = onRefreshMusic, enabled = !libraryLoading) {
                                         Icon(Icons.Rounded.Refresh, "Atualizar biblioteca", tint = Brass)
@@ -192,7 +195,8 @@ fun StudioScreen(
                             }
                             item {
                                 LibraryPermission(hasMusicPermission, libraryLoading, libraryError,
-                                    onRequestMusicPermission, onPickMusic)
+                                    libraryDiagnostics, authorizedFolders, onRequestMusicPermission,
+                                    onAuthorizeFolder, onPickMusic)
                             }
                             item {
                                 SearchBox(search, { search = it })
@@ -200,6 +204,13 @@ fun StudioScreen(
                             item {
                                 CollectionTabs(collections, chosenCollection, { chosenCollection = it },
                                     onCreate = { newPlaylistDialog = true })
+                            }
+                            item {
+                                TextButton(onClick = { chosenCollection = "Todas"; search = "" }) {
+                                    Icon(Icons.Rounded.LibraryMusic, null, tint = Brass,
+                                        modifier = Modifier.size(18.dp))
+                                    Text(" Exibir todas as músicas", fontSize = 12.sp)
+                                }
                             }
                             if (displayed.isEmpty()) {
                                 item {
@@ -558,31 +569,41 @@ private fun MiniPlayer(title: String, artist: String, isPlaying: Boolean,
 
 @Composable
 private fun LibraryPermission(
-    granted: Boolean, loading: Boolean, error: String?, askPermission: () -> Unit,
+    granted: Boolean, loading: Boolean, error: String?,
+    diagnostics: String, folderCount: Int,
+    askPermission: () -> Unit, authorizeFolder: () -> Unit,
     onPickMusic: () -> Unit
 ) {
-    if (!granted || error != null || loading) {
-        Surface(color = PanelDeep, shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Border)) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(when {
-                    loading -> "Lendo músicas do aparelho..."
-                    error != null -> error
-                    else -> "Autorize o acesso para encontrar músicas salvas no dispositivo."
-                }, color = Soft, fontSize = 12.sp)
-                if (!granted) {
-                    TextButton(onClick = askPermission) { Text("Permitir acesso às músicas") }
+    Surface(color = PanelDeep, shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Border)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("FONTES DE MÚSICA", color = Brass, fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp, fontSize = 11.sp)
+            Text(when {
+                loading -> "Procurando arquivos de áudio..."
+                error != null -> error
+                !granted -> "Autorize o acesso às músicas do Android."
+                else -> diagnostics
+            }, color = Soft, fontSize = 11.sp)
+            if (!granted) {
+                TextButton(onClick = askPermission) {
+                    Text("Conceder acesso às músicas", color = Brass)
                 }
             }
-        }
-    }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Rounded.Info, null, tint = Soft, modifier = Modifier.size(15.dp))
-        Spacer(Modifier.width(6.dp))
-        Text("Busca automática no armazenamento acessível do celular.",
-            color = Soft, fontSize = 11.sp, modifier = Modifier.weight(1f))
-        TextButton(onClick = onPickMusic, contentPadding = PaddingValues(horizontal = 6.dp)) {
-            Text("Abrir outro", fontSize = 11.sp)
+            HorizontalDivider(color = Border)
+            Text("Se o Android encontrou só parte da coleção, autorize uma pasta de músicas uma única vez. Suas subpastas serão indexadas automaticamente.",
+                color = Light, fontSize = 12.sp)
+            OutlinedButton(onClick = authorizeFolder, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Rounded.CreateNewFolder, contentDescription = null)
+                Text(" Adicionar pasta inteira")
+            }
+            if (folderCount > 0) {
+                Text(folderCount.toString() + " pasta(s) autorizada(s)",
+                    color = Brass, fontSize = 11.sp)
+            }
+            TextButton(onClick = onPickMusic, modifier = Modifier.fillMaxWidth()) {
+                Text("Abrir arquivo avulso (opcional)", fontSize = 11.sp)
+            }
         }
     }
 }
