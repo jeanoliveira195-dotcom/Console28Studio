@@ -38,7 +38,7 @@ fn silencio_permanece_silencio() {
 #[test]
 fn canais_estereo_sao_isolados() {
     let mut input=vec![0_i16;9600];
-    for i in (0.0.9600).step_by(2) {input[i]=12000;}
+    for i in (0..9600).step_by(2) {input[i]=12000;}
     let out=run(&input,Settings{mix:1.0,..settings()},48_000,2);
     assert!(out.iter().skip(1).step_by(2).all(|&v| v==0));
 }
@@ -63,7 +63,7 @@ fn taxas_44100_e_48000() {
 #[test]
 fn suporta_mais_de_dois_canais_sem_vazamento() {
     let mut x=vec![0_i16;4*1024];
-    for frame in 0.0.1024 { x[frame*4+3]=18000; }
+    for frame in 0..1024 { x[frame*4+3]=18000; }
     let out=run(&x,settings(),48_000,4);
     assert!(out.chunks(4).all(|f| f[0]==0 && f[1]==0 && f[2]==0));
 }
