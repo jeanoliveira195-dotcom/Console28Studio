@@ -2,10 +2,12 @@ package com.jean.console28.library
 
 import android.content.ContentUris
 import android.content.Context
+import android.database.Cursor
 import android.net.Uri
 import android.provider.MediaStore
 
-/** Tracks indexed by Android's MediaStore (phone storage and removable media). */
+/** Item indexado no armazenamento compartilhado do Android. IDs MediaStore
+ * são mantidos para preservar compatibilidade com as playlists existentes. */
 data class MusicTrack(
     val id: Long,
     val uri: Uri,
@@ -18,45 +20,111 @@ data class MusicTrack(
 )
 
 class DeviceMusicLibrary(private val context: Context) {
-    /** Call on Dispatchers.IO, after READ_MEDIA_AUDIO/READ_EXTERNAL_STORAGE permission. */
+    /** Lista todo áudio acessível e indexado no armazenamento compartilhado.
+     * Não filtra por duração, IS_MUSIC, artista, álbum ou diretório.
+     * Arquivos privados de outros apps, protegidos ou sem indexação pelo Android
+     * não podem ser acessados automaticamente com READ_MEDIA_AUDIO. */
     fun scan(): List<MusicTrack> {
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.DURATION, MediaStore.Audio.Media.DATE_ADDED, MediaStore.Audio.Media.ALBUM_ID
+        val items = LinkedHashMap<Long, MusicTrack>()
+        scanAudioTable(items)
+        try {
+            scanFilesFallback(items)
+        } catch (_: SecurityException) {
+            // Alguns dispositivos restringem a tabela Files; Audio.Media continua válida.
+        } catch (_: IllegalArgumentException) {
+            // Provedores diferentes podem rejeitar seleção ou colunas do fallback.
+        } catch (_: UnsupportedOperationException) {
+        }
+        return items.values.sortedWith(
+            compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.artist }
         )
-        val result = ArrayList<MusicTrack>()
-        context.contentResolver.query(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, projection, null, null, null
-        )?.use { cursor ->
+    }
+
+    private fun scanAudioTable(items: MutableMap<Long, MusicTrack>) {
+        val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val columns = arrayOf(
+            MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.DISPLAY_NAME, MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.DATE_ADDED, MediaStore.Audio.Media.ALBUM_ID
+        )
+        context.contentResolver.query(collection, columns, null, null, null)?.use { cursor ->
             val idAt = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            val titleAt = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-            val artistAt = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-            val albumAt = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-            val durationAt = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-            val addedAt = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
-            val albumIdAt = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val titleAt = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+            val filenameAt = cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
+            val artistAt = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+            val albumAt = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+            val durationAt = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+            val addedAt = cursor.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)
+            val albumIdAt = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idAt)
-                val duration = cursor.getLong(durationAt)
-                // Avoid ringtones/notifications; short music is accessible using file import.
-                if (duration < 15_000L) continue
-                val title = cursor.getString(titleAt)?.takeUnless { it.isBlank() }
-                    ?: "Faixa sem título"
-                val artist = cursor.getString(artistAt)?.takeUnless {
-                    it.isBlank() || it.equals("<unknown>", ignoreCase = true)
-                } ?: "Artista desconhecido"
-                val album = cursor.getString(albumAt)?.takeUnless {
-                    it.isBlank() || it.equals("<unknown>", ignoreCase = true)
-                } ?: "Álbum desconhecido"
-                result.add(MusicTrack(
+                if (id < 0) continue
+                // Sem limite mínimo: faixas curtas e arquivos sem metadados devem aparecer.
+                items[id] = MusicTrack(
                     id = id,
-                    uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id),
-                    title = title, artist = artist, album = album,
-                    durationMs = duration, addedSeconds = cursor.getLong(addedAt),
-                    albumId = cursor.getLong(albumIdAt)
-                ))
+                    uri = ContentUris.withAppendedId(collection, id),
+                    title = AudioCatalogRules.title(
+                        cursor.safeString(titleAt), cursor.safeString(filenameAt)
+                    ),
+                    artist = AudioCatalogRules.knownText(
+                        cursor.safeString(artistAt), "Artista desconhecido"
+                    ),
+                    album = AudioCatalogRules.knownText(
+                        cursor.safeString(albumAt), "Álbum desconhecido"
+                    ),
+                    durationMs = cursor.safeLong(durationAt),
+                    addedSeconds = cursor.safeLong(addedAt),
+                    albumId = cursor.safeLong(albumIdAt)
+                )
             }
         }
-        return result.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
     }
+
+    private fun scanFilesFallback(items: MutableMap<Long, MusicTrack>) {
+        // Fallback para áudios visíveis em Files mas mal classificados.
+        // Não contorna o scoped storage e nem acessa downloads privados.
+        val collection = MediaStore.Files.getContentUri("external")
+        val name = MediaStore.MediaColumns.DISPLAY_NAME
+        val mime = MediaStore.MediaColumns.MIME_TYPE
+        val columns = arrayOf(
+            MediaStore.Files.FileColumns._ID, name, mime,
+            MediaStore.MediaColumns.DATE_ADDED, MediaStore.MediaColumns.SIZE
+        )
+        val expressions = listOf("$mime LIKE ?") +
+            AudioCatalogRules.extensions.map { "$name LIKE ?" }
+        val where = expressions.joinToString(" OR ", "(", ")")
+        val args = arrayOf("audio/%") + AudioCatalogRules.extensions.map { "%$it" }
+        context.contentResolver.query(collection, columns, where, args, null)?.use { cursor ->
+            val idAt = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+            val filenameAt = cursor.getColumnIndex(name)
+            val mimeAt = cursor.getColumnIndex(mime)
+            val addedAt = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED)
+            val sizeAt = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idAt)
+                if (id < 0 || items.containsKey(id)) continue
+                val filename = cursor.safeString(filenameAt)
+                if (!AudioCatalogRules.audioCandidate(filename, cursor.safeString(mimeAt))) continue
+                if (sizeAt >= 0 && cursor.safeLong(sizeAt) == 0L) continue
+                items[id] = MusicTrack(
+                    id = id,
+                    uri = ContentUris.withAppendedId(collection, id),
+                    title = AudioCatalogRules.title(null, filename),
+                    artist = "Artista desconhecido",
+                    album = "Arquivos locais",
+                    durationMs = 0L,
+                    addedSeconds = cursor.safeLong(addedAt),
+                    albumId = 0L
+                )
+            }
+        }
+    }
+
+    private fun Cursor.safeString(index: Int): String? =
+        if (index < 0 || isNull(index)) null else getString(index)
+
+    private fun Cursor.safeLong(index: Int): Long =
+        if (index < 0 || isNull(index)) 0L else getLong(index)
 }
