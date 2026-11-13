@@ -82,7 +82,7 @@ fn bloqueio_de_dc_com_mix_integral() {
 }
 #[test]
 fn parametro_nao_finito_e_rejeitado() {
-    let v=[0.2,0.5,0.5,f32::NAN,0.8,-0.7,65.0];
+    let v=[0.2,0.5,0.5,f32::NAN,0.8,-0.7,65.0,0.8];
     assert!(Settings::from_wire(true,&v).is_none());
 }
 #[test]
@@ -101,7 +101,7 @@ fn aumenta_harmonicos_sem_injetar_sinal_ao_silencio() {
     // Frequência binária inteira para isolar uma harmônica no teste de projeção.
     let fs=48_000; let x=sine(fs,1_000.0,1.0,0.72);
     let out=run(&x,Settings{drive:0.85,warmth:0.5,presence:0.5,air:0.5,
-        low_cut_hz:30.0,mix:1.0,output_db:0.0,enabled:true},fs,1);
+        low_cut_hz:30.0,mix:1.0,output_db:0.0,enabled:true,bass_compression:0.0},fs,1);
     let mut sin2=0.0; let mut cos2=0.0;
     for (i,&v) in out.iter().enumerate().skip(24_000) {
         let phase=2.0*PI*2_000.0*i as f64/fs as f64;
@@ -116,7 +116,7 @@ fn abi_c_cria_processa_e_destroi() {
     unsafe {
         let p=console28_create(48_000,1);
         assert!(!p.is_null());
-        let settings=[0.18,0.65,0.60,0.46,0.82,-0.7,65.0];
+        let settings=[0.18,0.65,0.60,0.46,0.82,-0.7,65.0,0.25];
         assert_eq!(console28_set_settings(p,1,settings.as_ptr(),settings.len()),0);
         let mut buffer=sine(48_000,500.0,0.05,0.6);
         assert_eq!(console28_process(p,buffer.as_mut_ptr(),buffer.len()),0);
@@ -132,7 +132,7 @@ fn rms_last_half(x:&[i16])->f64 {
 #[test]
 fn controle_de_calor_aumenta_graves_ao_girar() {
     let x=sine(48_000,150.0,0.6,0.35);
-    let s=Settings{drive:0.0,mix:1.0,output_db:0.0,low_cut_hz:30.0,..settings()};
+    let s=Settings{drive:0.0,bass_compression:0.0,mix:1.0,output_db:-3.0,low_cut_hz:30.0,..settings()};
     let low=run(&x,Settings{warmth:0.1,..s},48_000,1);
     let high=run(&x,Settings{warmth:0.9,..s},48_000,1);
     assert!(rms_last_half(&high)>rms_last_half(&low)*1.15);
@@ -145,4 +145,57 @@ fn controles_de_presenca_atuam_na_frequencia_desejada() {
     let low=run(&x,Settings{presence:0.1,..s},48_000,1);
     let high=run(&x,Settings{presence:0.9,..s},48_000,1);
     assert!(rms_last_half(&high)>rms_last_half(&low)*1.4);
+}
+
+
+// A compressão dinâmica deve reduzir a razão pico/nível fraco em graves
+// mantendo o material com nível reduzido audível (makeup) sem hard clipping.
+#[test]
+fn compressor_grave_reduz_variacao_de_niveis() {
+    let base=Settings{drive:0.0,warmth:0.5,presence:0.5,air:0.5,
+        mix:1.0,output_db:-9.0,low_cut_hz:20.0,bass_compression:0.0,
+        enabled:true};
+    let soft=sine(48_000,85.0,1.0,0.04);
+    let loud=sine(48_000,85.0,1.0,0.60);
+    let off_soft=rms_last_half(&run(&soft,base,48_000,1));
+    let off_loud=rms_last_half(&run(&loud,base,48_000,1));
+    let on=Settings{bass_compression:0.95,..base};
+    let on_soft=rms_last_half(&run(&soft,on,48_000,1));
+    let on_loud=rms_last_half(&run(&loud,on,48_000,1));
+    assert!(on_soft>off_soft*1.08, "makeup insuficiente: {on_soft} vs {off_soft}");
+    assert!((on_loud/on_soft)<(off_loud/off_soft)*0.88,
+        "grave alto pouco comprimido: {} vs {}",on_loud/on_soft,off_loud/off_soft);
+}
+
+#[test]
+fn compressor_grave_nao_muda_agudos_significativamente() {
+    let input=sine(48_000,4_000.0,0.45,0.2);
+    let base=Settings{drive:0.0,warmth:0.5,presence:0.5,air:0.5,
+        mix:1.0,output_db:-5.0,low_cut_hz:20.0,bass_compression:0.0,
+        enabled:true};
+    let original=rms_last_half(&run(&input,base,48_000,1));
+    let compressed=rms_last_half(&run(&input,Settings{bass_compression:1.0,..base},48_000,1));
+    assert!((original/compressed-1.0).abs()<0.015,
+        "compressão grave afetou agudos sem necessidade: {original} -> {compressed}");
+}
+
+#[test]
+fn graves_fortes_mantem_picos_pcm_abaixo_do_teto() {
+    let x=sine(48_000,70.0,1.0,0.98);
+    let s=Settings{warmth:1.0,bass_compression:1.0,drive:0.1,
+        output_db:6.0,mix:1.0,low_cut_hz:20.0,..settings()};
+    let y=run(&x,s,48_000,1);
+    assert!(y.iter().all(|v| (i32::from(*v)).abs()<=31130));
+}
+
+#[test]
+fn compressor_e_limitador_mantem_consistencia_entre_blocos() {
+    let x=sine(48_000,110.0,0.83,0.86);
+    let s=Settings{bass_compression:0.85,warmth:0.8,mix:1.0,..settings()};
+    let all=run(&x,s,48_000,1);
+    let mut e=Engine::new(48_000,1).unwrap();
+    e.set_settings(s);
+    let mut pieces=x;
+    for block in pieces.chunks_mut(191) {e.process(block).unwrap();}
+    assert_eq!(all,pieces);
 }

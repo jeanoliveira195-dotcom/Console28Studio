@@ -38,14 +38,14 @@ JNIEXPORT void JNICALL
 Java_com_jean_console28_audio_NativeConsole28_setSettings(JNIEnv* env, jobject unused, jlong handle,
                                                             jboolean enabled, jfloatArray array) {
     (void)unused;
-    if (!array || (*env)->GetArrayLength(env, array) != 7) {
-        throw_error(env, "Rust DSP: sete parâmetros são necessários");
+    if (!array || (*env)->GetArrayLength(env, array) != 8) {
+        throw_error(env, "Rust DSP: oito parâmetros são necessários");
         return;
     }
-    float values[7];
-    (*env)->GetFloatArrayRegion(env, array, 0, 7, values);
+    float values[8];
+    (*env)->GetFloatArrayRegion(env, array, 0, 8, values);
     if ((*env)->ExceptionCheck(env)) return;
-    if (console28_set_settings((void*)(intptr_t)handle, enabled ? 1 : 0, values, 7) != 0)
+    if (console28_set_settings((void*)(intptr_t)handle, enabled ? 1 : 0, values, 8) != 0)
         throw_error(env, "Rust DSP: parâmetros inválidos");
 }
 

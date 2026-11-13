@@ -776,7 +776,10 @@ private fun AnalogControls(
         }
         if (alwaysOpen || expanded) {
             ControlSlider("Saturação", s.drive, enabled) { update(s.copy(drive = it)) }
-            ControlSlider("Calor / graves", s.warmth, enabled) { update(s.copy(warmth = it)) }
+            ControlSlider("Peso dos graves", s.warmth, enabled) { update(s.copy(warmth = it)) }
+            ControlSlider("Compressão dos graves", s.bassCompression, enabled) {
+                update(s.copy(bassCompression = it))
+            }
             ControlSlider("Presença", s.presence, enabled) { update(s.copy(presence = it)) }
             ControlSlider("Brilho", s.air, enabled) { update(s.copy(air = it)) }
             ControlSlider("Mistura", s.mix, enabled) { update(s.copy(mix = it)) }
@@ -785,7 +788,7 @@ private fun AnalogControls(
                 onValueChange = { update(s.copy(outputDb = it)) },
                 valueRange = -18f..6f, enabled = enabled)
         }
-        Text("Efeito inspirado em consoles históricos; não é uma cópia calibrada da Neve 8028.",
+        Text("EQ e compressão de graves com limitador de pico em Rust. Emulação inspirada em consoles históricos.",
             color = Soft, fontSize = 11.sp)
     }
 }

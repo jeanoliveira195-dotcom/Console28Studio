@@ -12,15 +12,17 @@ data class ConsoleSettings(
     val mix: Float = .82f,
     val outputDb: Float = -.7f,
     val lowCutHz: Float = 65f,
+    val bassCompression: Float = .25f,
 ) {
     companion object {
         fun narration() = ConsoleSettings()
-        fun music() = ConsoleSettings(drive = .11f, warmth = .56f, presence = .50f,
-            air = .50f, mix = .58f, outputDb = -.5f, lowCutHz = 30f)
-        fun vintage() = ConsoleSettings(drive = .45f, warmth = .73f, presence = .54f,
-            air = .41f, mix = 1f, outputDb = -2.5f, lowCutHz = 45f)
+        fun music() = ConsoleSettings(drive = .045f, warmth = .81f, bassCompression = .72f,
+            presence = .50f, air = .50f, mix = .95f, outputDb = -1.8f, lowCutHz = 27f)
+        fun vintage() = ConsoleSettings(drive = .34f, warmth = .74f, bassCompression = .48f,
+            presence = .54f, air = .41f, mix = 1f, outputDb = -2.5f, lowCutHz = 42f)
         fun neutral() = ConsoleSettings(enabled = false, drive = 0f, warmth = .5f,
-            presence = .5f, air = .5f, mix = 0f, outputDb = 0f, lowCutHz = 30f)
+            presence = .5f, air = .5f, mix = 0f, outputDb = 0f, lowCutHz = 30f,
+            bassCompression = 0f)
     }
 }
 
@@ -50,7 +52,8 @@ class ConsoleDsp(sampleRate: Int, channels: Int) : Closeable {
         if (settings != currentSettings) {
             NativeConsole28.setSettings(handle, settings.enabled, floatArrayOf(
                 settings.drive, settings.warmth, settings.presence,
-                settings.air, settings.mix, settings.outputDb, settings.lowCutHz
+                settings.air, settings.mix, settings.outputDb, settings.lowCutHz,
+                settings.bassCompression
             ))
             currentSettings = settings
         }
