@@ -1,4 +1,14 @@
-# Console 28 Studio
+# Console 28 Studio — Android 0.3.0 (Rust + Kotlin)
+
+## Novidades da versão 0.3
+
+- **Biblioteca automática:** reconhece arquivos MP3, FLAC e outros áudios locais indexados pelo Android (MediaStore) após autorização. Para Android 13+, usa READ_MEDIA_AUDIO; nos anteriores, READ_EXTERNAL_STORAGE.
+- **Playlists offline:** Todas, Adicionadas, Favoritas e playlists personalizadas, armazenadas localmente no aparelho. Inclusão e remoção de músicas sem modificar arquivos originais.
+- **Busca** por título, artista e álbum; fila de reprodução com próxima/anterior.
+- **Interface hi-fi vintage:** visual inspirado nos aparelhos japoneses de CD da década de 1980, com grafite, latão envelhecido e display âmbar; navegação Biblioteca / Playlists / Estúdio e miniplayer.
+- **Estúdio de voz:** mantém gravação original + processada em WAV, com DSP Rust nativo.
+- **Limitações atuais:** músicas protegidas por DRM/armazenadas dentro de Spotify ou Apple Music não podem ser importadas; arquivos não indexados pelo Android podem ser abertos manualmente, mas não passam a integrar a biblioteca. Ainda não há serviço de reprodução em segundo plano, capa de álbum real nem sincronização de playlists. Esta é uma versão debug de testes.
+
 
 Aplicativo Android offline para reprodução de MP3/FLAC e gravação de narração WAV, com processamento DSP inspirado em consoles britânicos analógicos clássicos. Interface Kotlin/Jetpack Compose; núcleo de áudio em Rust + JNI.
 
