@@ -1,4 +1,12 @@
-# Console 28 Studio v0.6.0 — Biblioteca automática ampliada
+# Console 28 Studio v0.7.0 — Indexação completa
+
+- O aplicativo mostra quantas faixas existem no catálogo e quantas estão visíveis após os filtros.
+- Além do MediaStore geral, verifica os volumes específicos de armazenamento, inclusive SD (quando acessível).
+- Importação de uma pasta inteira autorizada pelo usuário via seletor Android: percorre subpastas automaticamente, conserva a permissão e inclui os arquivos na biblioteca local.
+- Botão **Exibir todas as músicas** remove busca e filtros de coleção.
+- O diagnóstico das fontes aparece na Biblioteca.
+- Restrições: arquivos privados e DRM não são acessíveis; no Android 11+ o seletor não pode autorizar a raiz do armazenamento, a raiz do SD ou a pasta Download inteira. É possível autorizar uma subpasta permitida.
+
 
 - Lista todos os áudios indexados pelo Android, inclusive faixas curtas, arquivos sem metadados, músicas em pastas diferentes e itens não classificados como `IS_MUSIC`.
 - Busca complementar no índice MediaStore.Files, quando disponível, para recuperar arquivos de áudio reconhecidos por MIME ou extensão.
