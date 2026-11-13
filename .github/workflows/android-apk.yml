@@ -1,0 +1,46 @@
+name: Compilar APK Android (Rust + Kotlin)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "rust/**"
+      - "native/**"
+      - "scripts/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - ".github/workflows/android-apk.yml"
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Instalar SDK Android e NDK
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;27.2.12479018"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - name: Testar motor Rust
+        run: cargo test --manifest-path rust/Cargo.toml
+      - name: Validar ponte C / JNI
+        run: clang -std=c11 -fsyntax-only -Wall -Wextra -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" native/console28_jni.c
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Gerar APK
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Anexar APK compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: console28-android-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
