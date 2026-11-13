@@ -1,0 +1,15 @@
+[package]
+name = "console28_dsp"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+description = "DSP autoral inspirado na arquitetura de consoles analógicos britânicos"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
