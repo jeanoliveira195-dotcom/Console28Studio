@@ -13,8 +13,8 @@ android {
         applicationId = "com.jean.console28"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.3.0"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
     compileOptions {
@@ -41,6 +41,7 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.media3:media3-exoplayer:1.11.1")
 }
