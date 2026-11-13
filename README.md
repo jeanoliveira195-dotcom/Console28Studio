@@ -1,4 +1,15 @@
-# Console 28 Studio — Android 0.3.0 (Rust + Kotlin)
+# Console 28 Studio — v0.4.0 (Rust + Kotlin)
+
+## Novidades v0.4 — graves com peso e compressão controlada
+
+- **Preset Música reajustado:** low-shelf de graves mais audível, compressão abaixo de aproximadamente 155 Hz, saturação reduzida e saída com margem de segurança.
+- **Novo slider:** `Compressão dos graves`, separado de `Peso dos graves`. O compressor usa detector com ataque/release suavizados e redução de ganho vinculada entre canais para preservar o balanço estéreo.
+- **Limitador PCM em Rust:** limita picos das amostras a aproximadamente -0,45 dBFS, sem alegação de limitação true-peak ou eliminação total de distorção.
+- **Mixagem mais acessível:** aba dedicada com sliders sempre visíveis e atalho na Biblioteca.
+- **Validação:** testes do núcleo Rust, verificação sintática JNI e build Android debug passaram no GitHub Actions. Ainda falta escuta e medição em dispositivos reais.
+
+> Os filtros são inspirados em aparelhos analógicos clássicos, não são uma reprodução calibrada/licenciada da Neve 8028.
+
 
 ## Novidades da versão 0.3
 
