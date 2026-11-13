@@ -132,6 +132,7 @@ fun StudioScreen(
                         listOf(
                             Triple("Biblioteca", Icons.Rounded.LibraryMusic, 0),
                             Triple("Playlists", Icons.Rounded.QueueMusic, 1),
+                            Triple("Mixagem", Icons.Rounded.Tune, 3),
                             Triple("Estúdio", Icons.Rounded.Mic, 2)
                         ).forEach { (label, icon, index) ->
                             NavigationBarItem(
@@ -169,7 +170,7 @@ fun StudioScreen(
                                     positionMs, durationMs, onSeek)
                             }
                             item {
-                                QuickSoundStrip(settings, onSettings)
+                                QuickSoundStrip(settings, onSettings, onOpenMixer = { onTab(3) })
                             }
                             item {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -256,7 +257,7 @@ fun StudioScreen(
                             }
                         }
                     }
-                    else -> {
+                    2 -> {
                         Column(
                             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -271,6 +272,24 @@ fun StudioScreen(
                             AnalogControls(settings, onSettings, !recording, fineTuneOpen,
                                 onExpand = { fineTuneOpen = !fineTuneOpen })
                             Text(message, color = Soft, fontSize = 12.sp)
+                            Footnote()
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
+                    else -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Text("Mesa de mixagem", color = Light, fontSize = 25.sp,
+                                fontWeight = FontWeight.SemiBold)
+                            Text("Seu som, sob controle. Ajustes aplicados ao player em tempo real e às novas gravações.",
+                                color = Soft, fontSize = 13.sp)
+                            AnalogControls(settings, onSettings, !recording, expanded = true,
+                                onExpand = {}, alwaysOpen = true)
+                            Text(if (recording) "Finalize a gravação para voltar a ajustar o efeito."
+                                else "Experimente os controles enquanto ouve sua música. O arquivo original não é alterado.",
+                                color = Soft, fontSize = 12.sp)
                             Footnote()
                             Spacer(Modifier.height(12.dp))
                         }
@@ -335,25 +354,43 @@ fun StudioScreen(
 }
 
 @Composable
-private fun QuickSoundStrip(s: ConsoleSettings, update: (ConsoleSettings) -> Unit) {
+private fun QuickSoundStrip(
+    s: ConsoleSettings,
+    update: (ConsoleSettings) -> Unit,
+    onOpenMixer: () -> Unit
+) {
     Surface(shape = RoundedCornerShape(13.dp), color = PanelDeep,
         border = BorderStroke(1.dp, Border)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(Icons.Rounded.Tune, null, tint = Brass, modifier = Modifier.size(18.dp))
-            Text("COR", color = Brass, fontSize = 10.sp, letterSpacing = 1.sp)
-            Spacer(Modifier.weight(1f))
-            listOf("Voz" to ConsoleSettings.narration(),
-                "Música" to ConsoleSettings.music(), "Vintage" to ConsoleSettings.vintage())
-                .forEach { (label, preset) ->
-                    TextButton(onClick = { update(preset) },
-                        contentPadding = PaddingValues(horizontal = 6.dp)) {
-                        Text(label, color = if (s == preset) Accent else Soft, fontSize = 11.sp)
-                    }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Tune, null, tint = Brass, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("COLOR ENGINE", color = Brass, fontSize = 10.sp, letterSpacing = 1.sp)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onOpenMixer,
+                    contentPadding = PaddingValues(horizontal = 10.dp)) {
+                    Icon(Icons.Rounded.Tune, contentDescription = null,
+                        tint = Accent, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Mixagem", color = Accent, fontSize = 12.sp)
                 }
-            Switch(checked = s.enabled, onCheckedChange = { update(s.copy(enabled = it)) },
-                modifier = Modifier.height(28.dp))
+            }
+            Row(Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf("Voz" to ConsoleSettings.narration(),
+                    "Música" to ConsoleSettings.music(), "Vintage" to ConsoleSettings.vintage())
+                    .forEach { (label, preset) ->
+                        TextButton(onClick = { update(preset) },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 4.dp)) {
+                            Text(label, color = if (s == preset) Accent else Soft,
+                                fontSize = 12.sp, maxLines = 1)
+                        }
+                    }
+                Switch(checked = s.enabled,
+                    onCheckedChange = { update(s.copy(enabled = it)) })
+            }
         }
     }
 }
@@ -708,7 +745,8 @@ private fun RecorderCard(
 @Composable
 private fun AnalogControls(
     s: ConsoleSettings, update: (ConsoleSettings) -> Unit,
-    enabled: Boolean, expanded: Boolean, onExpand: () -> Unit
+    enabled: Boolean, expanded: Boolean, onExpand: () -> Unit,
+    alwaysOpen: Boolean = false
 ) {
     PanelCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -729,12 +767,14 @@ private fun AnalogControls(
                 }
             }
         }
-        TextButton(onClick = onExpand, modifier = Modifier.fillMaxWidth()) {
-            Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.Tune, null)
-            Spacer(Modifier.width(6.dp))
-            Text(if (expanded) "Ocultar ajuste fino" else "Abrir ajuste fino")
+        if (!alwaysOpen) {
+            TextButton(onClick = onExpand, modifier = Modifier.fillMaxWidth()) {
+                Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.Tune, null)
+                Spacer(Modifier.width(6.dp))
+                Text(if (expanded) "Ocultar ajuste fino" else "Abrir ajuste fino")
+            }
         }
-        if (expanded) {
+        if (alwaysOpen || expanded) {
             ControlSlider("Saturação", s.drive, enabled) { update(s.copy(drive = it)) }
             ControlSlider("Calor / graves", s.warmth, enabled) { update(s.copy(warmth = it)) }
             ControlSlider("Presença", s.presence, enabled) { update(s.copy(presence = it)) }
