@@ -19,7 +19,92 @@ data class MusicTrack(
     val albumId: Long
 )
 
+data class LibraryScanResult(
+    val tracks: List<MusicTrack>,
+    val mediaStoreCount: Int,
+    val folderCount: Int,
+    val diagnostics: String
+)
+
 class DeviceMusicLibrary(private val context: Context) {
+
+    /** Complementa a consulta atual com outras unidades e pastas SAF autorizadas. */
+    fun scanDetailed(folderUris: List<Uri>): LibraryScanResult {
+        val base = scan()
+        val tracks = LinkedHashMap<Long, MusicTrack>()
+        base.forEach { tracks[it.id] = it }
+        val report = arrayListOf("MediaStore: ${base.size}")
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            val volumes = try {
+                MediaStore.getExternalVolumeNames(context).sorted()
+            } catch (_: Exception) { emptyList() }
+            for (volume in volumes) {
+                try {
+                    val collection = MediaStore.Audio.Media.getContentUri(volume)
+                    val before = tracks.size
+                    val cols = arrayOf(
+                        MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE,
+                        MediaStore.Audio.Media.DISPLAY_NAME, MediaStore.Audio.Media.ARTIST,
+                        MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.DURATION,
+                        MediaStore.Audio.Media.DATE_ADDED, MediaStore.Audio.Media.ALBUM_ID
+                    )
+                    context.contentResolver.query(collection, cols, null, null, null)?.use { c ->
+                        val idAt = c.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                        val nameAt = c.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
+                        val titleAt = c.getColumnIndex(MediaStore.Audio.Media.TITLE)
+                        val artistAt = c.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+                        val albumAt = c.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+                        val durationAt = c.getColumnIndex(MediaStore.Audio.Media.DURATION)
+                        val dateAt = c.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)
+                        val albumIdAt = c.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
+                        while (c.moveToNext()) {
+                            val nativeId = c.getLong(idAt)
+                            if (nativeId < 0) continue
+                            val isPrimary = volume == MediaStore.VOLUME_EXTERNAL_PRIMARY
+                            val id = if (isPrimary) nativeId
+                                else LibraryIds.stableId("volume:${volume}:${nativeId}")
+                            if (tracks.containsKey(id)) continue
+                            tracks[id] = MusicTrack(
+                                id = id,
+                                uri = ContentUris.withAppendedId(collection, nativeId),
+                                title = AudioCatalogRules.title(
+                                    c.safeString(titleAt), c.safeString(nameAt)),
+                                artist = AudioCatalogRules.knownText(
+                                    c.safeString(artistAt), "Artista desconhecido"),
+                                album = AudioCatalogRules.knownText(
+                                    c.safeString(albumAt), "Álbum desconhecido"),
+                                durationMs = c.safeLong(durationAt),
+                                addedSeconds = c.safeLong(dateAt),
+                                albumId = c.safeLong(albumIdAt)
+                            )
+                        }
+                    }
+                    report.add("${volume}: +${tracks.size-before}")
+                } catch (_: SecurityException) {
+                    report.add("${volume}: acesso restrito")
+                } catch (_: IllegalArgumentException) {
+                    report.add("${volume}: indisponível")
+                }
+            }
+        }
+        val mediaTotal = tracks.size
+        var folderTotal = 0
+        for (tree in folderUris) {
+            try {
+                for (track in DocumentTreeMusicSource(context).scan(tree)) {
+                    if (tracks.putIfAbsent(track.id, track) == null) folderTotal++
+                }
+            } catch (_: Exception) {
+                report.add("Pasta autorizada: acesso indisponível")
+            }
+        }
+        report.add("Pastas: +${folderTotal}")
+        val sorted = tracks.values.sortedWith(compareBy<MusicTrack> {
+            it.title.lowercase(java.util.Locale.ROOT)
+        }.thenBy { it.artist.lowercase(java.util.Locale.ROOT) })
+        return LibraryScanResult(sorted, mediaTotal, folderTotal, report.joinToString(" · "))
+    }
+
     /** Lista todo áudio acessível e indexado no armazenamento compartilhado.
      * Não filtra por duração, IS_MUSIC, artista, álbum ou diretório.
      * Arquivos privados de outros apps, protegidos ou sem indexação pelo Android
