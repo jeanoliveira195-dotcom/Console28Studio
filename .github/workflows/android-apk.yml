@@ -26,7 +26,9 @@ jobs:
       - name: Instalar SDK Android e NDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager --install "platforms;android-36" "build-tools;35.0.0" "ndk;27.2.12479018"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -type f -name sdkmanager | sort -V | tail -1)"
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;35.0.0" "ndk;27.2.12479018"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,x86_64-linux-android
